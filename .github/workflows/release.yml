@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate icon
+        run: swift make_icon.swift
+
+      - name: Build app
+        run: bash build.sh
+
+      - name: Re-sign ad-hoc
+        run: |
+          xattr -cr ClaudeBar.app
+          codesign --force --deep --sign - ClaudeBar.app
+
+      - name: Zip app
+        run: zip -r "ClaudeBar-${{ github.ref_name }}.zip" ClaudeBar.app
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          VERSION="${{ github.ref_name }}"
+          BARE="${VERSION#v}"
+          NOTES=$(awk "/^## \[${BARE}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          {
+            echo "body<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "ClaudeBar ${{ github.ref_name }}"
+          body: ${{ steps.notes.outputs.body }}
+          files: "ClaudeBar-${{ github.ref_name }}.zip"
