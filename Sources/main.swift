@@ -258,6 +258,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if d > 0 { return "\(d)d \(h)h" }
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
+
+    private func colorFromDefaults(key: String, fallback: NSColor) -> NSColor {
+        let val = UserDefaults.standard.string(forKey: key) ?? ""
+        if val == "systemRed" { return .systemRed }
+        return NSColor(hex: val) ?? fallback
+    }
+
+    private func zone(for utilization: Double) -> (NSColor, CGFloat) {
+        let warn = UserDefaults.standard.double(forKey: "warningThreshold")
+        let crit = UserDefaults.standard.double(forKey: "criticalThreshold")
+        if utilization >= crit {
+            return (colorFromDefaults(key: "criticalColor", fallback: .systemRed), 10)
+        } else if utilization >= warn {
+            return (colorFromDefaults(key: "warningColor", fallback: claudeOrange), 9)
+        } else {
+            return (.labelColor, 9)
+        }
+    }
 }
 
 // MARK: - NSColor hex parsing
