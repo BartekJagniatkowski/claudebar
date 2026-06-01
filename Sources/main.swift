@@ -133,7 +133,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Display
 
-    private func setDisplay(_ line1: String, _ line2: String) {
+    private func setDisplay(
+        _ line1: String, _ line2: String,
+        color1: NSColor = .labelColor, size1: CGFloat = 9,
+        color2: NSColor = .labelColor, size2: CGFloat = 9
+    ) {
         guard let button = statusItem?.button else { return }
 
         let para = NSMutableParagraphStyle()
@@ -142,18 +146,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         para.maximumLineHeight = 11
         para.minimumLineHeight = 11
 
-        let font = NSFont(name: "Menlo", size: 9)
-            ?? .monospacedSystemFont(ofSize: 9, weight: .regular)
+        func rowAttrs(color: NSColor, size: CGFloat) -> [NSAttributedString.Key: Any] {
+            [
+                .font: NSFont(name: "Menlo", size: size)
+                    ?? .monospacedSystemFont(ofSize: size, weight: .regular),
+                .foregroundColor: color,
+                .paragraphStyle: para,
+                .baselineOffset: -4,
+            ]
+        }
 
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: para,
-            .baselineOffset: -4,
-        ]
-
-        let text = line2.isEmpty ? line1 : "\(line1)\n\(line2)"
-        button.attributedTitle = NSAttributedString(string: text, attributes: attrs)
+        if line2.isEmpty {
+            button.attributedTitle = NSAttributedString(
+                string: line1, attributes: rowAttrs(color: color1, size: size1)
+            )
+        } else {
+            let s = NSMutableAttributedString()
+            s.append(NSAttributedString(string: line1,  attributes: rowAttrs(color: color1, size: size1)))
+            s.append(NSAttributedString(string: "\n",   attributes: rowAttrs(color: color1, size: size1)))
+            s.append(NSAttributedString(string: line2,  attributes: rowAttrs(color: color2, size: size2)))
+            button.attributedTitle = s
+        }
     }
 
     // MARK: - Token
