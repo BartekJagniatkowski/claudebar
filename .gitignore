@@ -1,0 +1,9 @@
+.DS_Store
+*.env
+.env.local
+*.o
+*.d
+claudebar_bin
+AppIcon.iconset/
+ClaudeBar.app/
+claudebar.app/
