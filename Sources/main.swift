@@ -235,11 +235,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             let fh = json["five_hour"] as? [String: Any] ?? [:]
             let sd = json["seven_day"]  as? [String: Any] ?? [:]
-            let sessionPct   = Int((fh["utilization"] as? Double ?? 0).rounded())
-            let weeklyPct    = Int((sd["utilization"] as? Double ?? 0).rounded())
+            let sessionRaw   = fh["utilization"] as? Double ?? 0
+            let weeklyRaw    = sd["utilization"] as? Double ?? 0
+            let sessionPct   = Int(sessionRaw.rounded())
+            let weeklyPct    = Int(weeklyRaw.rounded())
             let sessionReset = timeUntil(fh["resets_at"] as? String)
             let weeklyReset  = timeUntil(sd["resets_at"] as? String)
-            setDisplay("\(sessionPct)% \(sessionReset)", "\(weeklyPct)% \(weeklyReset)")
+            let (c1, s1)     = zone(for: sessionRaw / 100)
+            let (c2, s2)     = zone(for: weeklyRaw  / 100)
+            setDisplay(
+                "\(sessionPct)% \(sessionReset)",
+                "\(weeklyPct)% \(weeklyReset)",
+                color1: c1, size1: s1,
+                color2: c2, size2: s2
+            )
         case 401:
             setDisplay("401", "re-auth")
         case 429:
