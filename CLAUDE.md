@@ -5,6 +5,8 @@ macOS menubar app showing Claude Code token usage at a glance.
 ## What it does
 
 - Menubar item: two lines — top: session `%` + time to session reset; bottom: weekly `%` + time to weekly reset
+- Color-coded zones: orange at ≥75% (warning), red + larger text at ≥90% (critical); rows styled independently
+- Thresholds configurable via UserDefaults (`defaults write net.claudebar warningThreshold 0.8`)
 - Refreshes every 60s; debounced to never call API faster than 30s
 - Backs off 5 minutes on HTTP 429
 - Error states: `C?` = no token, `C401` = expired token, `C429` = rate limited
@@ -70,6 +72,7 @@ Repo: https://github.com/BartekJagniatkowski/claudebar
 - Token fetched on background thread (Process blocks); HTTP via URLSession async
 - Ad-hoc codesign (`--sign -`) — works locally, not notarized
 - Time format: `Xh Ym` when < 1 day, `Xd Yh` when ≥ 1 day
+- Usage zones: `zone(for:)` maps 0–1 utilization to `(NSColor, CGFloat)`; thresholds read from UserDefaults each poll
 
 ## Styling
 
