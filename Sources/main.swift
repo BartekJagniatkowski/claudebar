@@ -1,6 +1,10 @@
 import AppKit
 import ServiceManagement
 
+private let claudeOrange = NSColor(
+    calibratedRed: 0.788, green: 0.478, blue: 0.345, alpha: 1
+)
+
 // MARK: - Entry point
 
 let app = NSApplication.shared
@@ -246,5 +250,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let m = Int(diff) % 3600 / 60
         if d > 0 { return "\(d)d \(h)h" }
         return h > 0 ? "\(h)h \(m)m" : "\(m)m"
+    }
+}
+
+// MARK: - NSColor hex parsing
+
+extension NSColor {
+    convenience init?(hex: String) {
+        let h = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard h.count == 6, let value = UInt64(h, radix: 16) else { return nil }
+        self.init(
+            calibratedRed:   CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >>  8) & 0xFF) / 255,
+            blue:  CGFloat( value        & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }
