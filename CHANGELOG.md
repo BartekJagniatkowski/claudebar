@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0] — 2026-06-02
+
+### Added
+- Color-coded usage zones: warning (orange, default ≥75%) and critical (red + larger text, default ≥90%)
+- Session and weekly rows styled independently
+- Thresholds and colors configurable via UserDefaults (`defaults write net.claudebar warningThreshold 0.8`)
+
 ## [1.0.0] — 2026-06-01
 
 ### Added
