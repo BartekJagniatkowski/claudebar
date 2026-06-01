@@ -25,6 +25,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let backoffDuration: TimeInterval = 300
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: [
+            "warningThreshold": 0.75,
+            "criticalThreshold": 0.90,
+            "warningColor": "#C97A58",
+            "criticalColor": "systemRed",
+        ])
+
         NSApp.setActivationPolicy(.accessory)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
