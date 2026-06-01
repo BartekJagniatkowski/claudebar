@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0] — 2026-06-01
+
+### Added
+- Public GitHub release with pre-built ClaudeBar.app download
+- GitHub Actions CI: builds and publishes release zip on version tag
+- release.sh script for version bumping, tagging, and pushing
+- README install instructions with Gatekeeper workaround
+
 ## [0.2.0] — 2026-06-01
 
 ### Changed
