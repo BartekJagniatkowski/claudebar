@@ -28,8 +28,10 @@ Response fields used: `five_hour.utilization`, `five_hour.resets_at`, `seven_day
 | `make_icon.swift` | Generate `AppIcon.icns` from `AppNameIcon.webp` (run once when icon changes) |
 | `AppIcon.icns` | Generated icon — built from AppNameIcon.webp |
 | `AppNameIcon.webp` | Source icon image — orange bg, dark "C%" |
+| `release.sh` | Version bump + tag + push → triggers CI release |
 | `claudebar.lua` | Hammerspoon version (legacy, kept for reference) |
 | `init.lua` | Hammerspoon init that loads claudebar.lua |
+| `.github/workflows/release.yml` | CI: builds + zips + publishes GitHub release on `v*` tag |
 
 ## Build
 
@@ -42,9 +44,21 @@ bash build.sh
 
 # Install
 cp -r ClaudeBar.app /Applications/
+xattr -cr /Applications/ClaudeBar.app  # first launch: bypass Gatekeeper
 ```
 
 Requires: Xcode command line tools (`xcode-select --install`), macOS 13+.
+
+## Releasing
+
+```bash
+# 1. Add ## [X.Y.Z] section to CHANGELOG.md
+# 2. Run:
+./release.sh X.Y.Z
+```
+
+CI builds `ClaudeBar-vX.Y.Z.zip` and publishes it as a GitHub release automatically.
+Repo: https://github.com/BartekJagniatkowski/claudebar
 
 ## Key implementation details
 
