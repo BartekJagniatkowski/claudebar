@@ -1,0 +1,250 @@
+import AppKit
+import ServiceManagement
+
+// MARK: - Entry point
+
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.run()
+
+// MARK: - App Delegate
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    private var statusItem: NSStatusItem!
+    private var timer: Timer?
+    private var lastCallDate: Date = .distantPast
+    private var backoffUntil: Date = .distantPast
+
+    private let pollInterval: TimeInterval = 60
+    private let minCallGap: TimeInterval = 30
+    private let backoffDuration: TimeInterval = 300
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        setDisplay("C…", "")
+        buildMenu()
+
+        refresh()
+        timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+            self?.refresh()
+        }
+    }
+
+    // MARK: - Menu
+
+    private func buildMenu() {
+        let menu = NSMenu()
+
+        let loginItem = NSMenuItem(
+            title: "Launch at Login",
+            action: #selector(toggleLogin(_:)),
+            keyEquivalent: ""
+        )
+        loginItem.state = loginEnabled ? .on : .off
+        menu.addItem(loginItem)
+
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(
+            title: "Quit claudebar",
+            action: #selector(NSApp.terminate(_:)),
+            keyEquivalent: "q"
+        ))
+
+        statusItem.menu = menu
+    }
+
+    // MARK: - Login item
+
+    private var loginEnabled: Bool {
+        if #available(macOS 13.0, *) {
+            return SMAppService.mainApp.status == .enabled
+        }
+        return FileManager.default.fileExists(atPath: launchAgentURL.path)
+    }
+
+    private var launchAgentURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/net.claudebar.plist")
+    }
+
+    @objc private func toggleLogin(_ sender: NSMenuItem) {
+        if #available(macOS 13.0, *) {
+            let svc = SMAppService.mainApp
+            do {
+                if svc.status == .enabled {
+                    try svc.unregister()
+                    sender.state = .off
+                } else {
+                    try svc.register()
+                    sender.state = .on
+                }
+                return
+            } catch {}
+        }
+        toggleLaunchAgent(sender)
+    }
+
+    private func toggleLaunchAgent(_ sender: NSMenuItem) {
+        let url = launchAgentURL
+        if FileManager.default.fileExists(atPath: url.path) {
+            launchctl("unload", url.path)
+            try? FileManager.default.removeItem(at: url)
+            sender.state = .off
+        } else {
+            let exe = Bundle.main.executablePath
+                ?? "/Applications/claudebar.app/Contents/MacOS/claudebar"
+            let plist: [String: Any] = [
+                "Label": "net.claudebar",
+                "ProgramArguments": [exe],
+                "RunAtLoad": true,
+                "KeepAlive": false,
+            ]
+            if let data = try? PropertyListSerialization.data(
+                fromPropertyList: plist, format: .xml, options: 0
+            ) {
+                try? data.write(to: url)
+                launchctl("load", url.path)
+                sender.state = .on
+            }
+        }
+    }
+
+    private func launchctl(_ verb: String, _ path: String) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        p.arguments = [verb, path]
+        try? p.run()
+        p.waitUntilExit()
+    }
+
+    // MARK: - Display
+
+    private func setDisplay(_ line1: String, _ line2: String) {
+        guard let button = statusItem?.button else { return }
+
+        let para = NSMutableParagraphStyle()
+        para.alignment = .center
+        para.lineSpacing = 0
+        para.maximumLineHeight = 11
+        para.minimumLineHeight = 11
+
+        let font = NSFont(name: "Menlo", size: 9)
+            ?? .monospacedSystemFont(ofSize: 9, weight: .regular)
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: para,
+            .baselineOffset: -4,
+        ]
+
+        let text = line2.isEmpty ? line1 : "\(line1)\n\(line2)"
+        button.attributedTitle = NSAttributedString(string: text, attributes: attrs)
+    }
+
+    // MARK: - Token
+
+    private func getToken() -> String? {
+        for service in ["Claude Code-credentials", "Claude Code"] {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+            p.arguments = ["find-generic-password", "-s", service, "-w"]
+            let out = Pipe()
+            p.standardOutput = out
+            p.standardError = Pipe()
+            guard (try? p.run()) != nil else { continue }
+            p.waitUntilExit()
+            guard p.terminationStatus == 0 else { continue }
+            let raw = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !raw.isEmpty,
+                  let data = raw.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let oauth = json["claudeAiOauth"] as? [String: Any],
+                  let token = oauth["accessToken"] as? String
+            else { continue }
+            return token
+        }
+        return nil
+    }
+
+    // MARK: - Refresh
+
+    private func refresh() {
+        let now = Date()
+        guard now >= backoffUntil, now.timeIntervalSince(lastCallDate) >= minCallGap else { return }
+        lastCallDate = now
+
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self else { return }
+
+            guard let token = self.getToken() else {
+                DispatchQueue.main.async { self.setDisplay("C?", "re-auth") }
+                return
+            }
+
+            var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
+            req.timeoutInterval = 10
+            req.setValue("application/json", forHTTPHeaderField: "Accept")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            req.setValue("claude-code/2.1.0", forHTTPHeaderField: "User-Agent")
+
+            URLSession.shared.dataTask(with: req) { data, response, _ in
+                let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                DispatchQueue.main.async { self.handleResponse(code: code, data: data) }
+            }.resume()
+        }
+    }
+
+    private func handleResponse(code: Int, data: Data?) {
+        switch code {
+        case 200:
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else {
+                setDisplay("C?", "parse err")
+                return
+            }
+            let fh = json["five_hour"] as? [String: Any] ?? [:]
+            let sd = json["seven_day"]  as? [String: Any] ?? [:]
+            let sessionPct   = Int((fh["utilization"] as? Double ?? 0).rounded())
+            let weeklyPct    = Int((sd["utilization"] as? Double ?? 0).rounded())
+            let sessionReset = timeUntil(fh["resets_at"] as? String)
+            let weeklyReset  = timeUntil(sd["resets_at"] as? String)
+            setDisplay("\(sessionPct)% \(sessionReset)", "\(weeklyPct)% \(weeklyReset)")
+        case 401:
+            setDisplay("401", "re-auth")
+        case 429:
+            backoffUntil = Date().addingTimeInterval(backoffDuration)
+            setDisplay("429", "5m wait")
+        default:
+            setDisplay("C\(code)", "")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func timeUntil(_ iso: String?) -> String {
+        guard let iso else { return "?" }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = fmt.date(from: iso)
+        if date == nil {
+            fmt.formatOptions = [.withInternetDateTime]
+            date = fmt.date(from: iso)
+        }
+        guard let date else { return "?" }
+        let diff = date.timeIntervalSinceNow
+        guard diff > 0 else { return "now" }
+        let totalH = Int(diff) / 3600
+        let d = totalH / 24
+        let h = totalH % 24
+        let m = Int(diff) % 3600 / 60
+        if d > 0 { return "\(d)d \(h)h" }
+        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
+    }
+}
