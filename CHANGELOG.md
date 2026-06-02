@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1] — 2026-06-02
+
+- Fix color space drift: custom color picker no longer silently alters saved hex values
+
 ## [1.2.0] — 2026-06-02
 
 - Settings window (⌘,): Launch at Login toggle, warning/critical threshold %, color preset swatches, custom color picker
