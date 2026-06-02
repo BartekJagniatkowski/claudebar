@@ -16,7 +16,6 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
     private var warningSwatches: [NSButton] = []
     private var criticalSwatches: [NSButton] = []
     private var colorPickerController: ColorPickerWindowController?
-    private var activeColorKey: String = ""
 
     private let warningPresets  = ["#C97A58", "#e8a87c", "#eab308", "#38bdf8"]
     private let criticalPresets = ["#ef4444", "#f87171", "#f97316", "#a855f7"]
@@ -326,6 +325,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
     }
 
     private func openPicker(colorKey: String, swatches: [NSButton]) {
+        colorPickerController?.window?.close()
         let currentHex = UserDefaults.standard.string(forKey: colorKey) ?? "#C97A58"
         let initial = NSColor(hex: currentHex) ?? NSColor(hex: "#C97A58")!
 
