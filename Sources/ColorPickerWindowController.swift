@@ -166,7 +166,7 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 240, height: 220),
-            styleMask:   [.titled, .closable, .nonactivatingPanel],
+            styleMask:   [.titled, .closable],
             backing:     .buffered,
             defer:       false
         )
@@ -174,6 +174,7 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
         panel.appearance      = NSAppearance(named: .darkAqua)
         panel.backgroundColor = NSColor(hex: "#09090b")!
         panel.isFloatingPanel = true
+        panel.isReleasedWhenClosed = false
         super.init(window: panel)
         panel.delegate = self
         buildUI()
@@ -208,6 +209,7 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
         hexField.font            = .monospacedSystemFont(ofSize: 12, weight: .regular)
         hexField.wantsLayer      = true
         hexField.layer!.cornerRadius = 6
+        hexField.layer!.masksToBounds = true
         hexField.layer!.borderWidth  = 1
         hexField.layer!.borderColor  = NSColor(hex: "#27272a")!.cgColor
         hexField.delegate            = self
