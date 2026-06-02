@@ -317,9 +317,33 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         UserDefaults.standard.set(presets[index], forKey: colorKey)
     }
 
-    // Placeholder — wired in Task 7
-    @objc private func openWarningPicker() {}
-    @objc private func openCriticalPicker() {}
+    @objc private func openWarningPicker() {
+        openPicker(colorKey: "warningColor", swatches: warningSwatches)
+    }
+
+    @objc private func openCriticalPicker() {
+        openPicker(colorKey: "criticalColor", swatches: criticalSwatches)
+    }
+
+    private func openPicker(colorKey: String, swatches: [NSButton]) {
+        let currentHex = UserDefaults.standard.string(forKey: colorKey) ?? "#C97A58"
+        let initial = NSColor(hex: currentHex) ?? NSColor(hex: "#C97A58")!
+
+        let picker = ColorPickerWindowController(initialColor: initial)
+        picker.onColorSelected = { [weak self] color in
+            guard let self else { return }
+            UserDefaults.standard.set(color.hexString, forKey: colorKey)
+            // Deselect all preset swatches since a custom color is now active
+            for btn in swatches {
+                btn.layer!.borderWidth = 0
+                btn.layer!.borderColor = NSColor.clear.cgColor
+            }
+            self.colorPickerController = nil
+        }
+        colorPickerController = picker
+        picker.window?.center()
+        picker.showWindow(nil)
+    }
 
     // MARK: - Login item
 
