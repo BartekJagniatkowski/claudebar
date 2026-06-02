@@ -240,8 +240,8 @@ extension NSColor {
     var hexString: String {
         guard let c = usingColorSpace(.deviceRGB) else { return "#000000" }
         return String(format: "#%02X%02X%02X",
-            Int(c.redComponent   * 255),
-            Int(c.greenComponent * 255),
-            Int(c.blueComponent  * 255))
+            Int(c.redComponent   * 255 + 0.5),
+            Int(c.greenComponent * 255 + 0.5),
+            Int(c.blueComponent  * 255 + 0.5))
     }
 }
