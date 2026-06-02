@@ -186,7 +186,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
             subtitle.leadingAnchor.constraint(equalTo: container.leadingAnchor),
 
             pctField.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            pctField.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            pctField.centerYAnchor.constraint(equalTo: title.centerYAnchor),
             pctField.widthAnchor.constraint(equalToConstant: 52),
             pctField.heightAnchor.constraint(equalToConstant: 30),
 
