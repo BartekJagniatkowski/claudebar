@@ -107,9 +107,123 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
 
         return container
     }
-    private func makeExplanationRow() -> NSView { NSView() }
-    private func makeThresholdRow(isWarning: Bool) -> NSView { NSView() }
+    private func makeExplanationRow() -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let text = lbl(
+            "Menubar text shifts color when session or weekly usage crosses a threshold. Each row is evaluated independently.",
+            size: 11, color: textMuted
+        )
+        text.maximumNumberOfLines = 0
+        container.addSubview(text)
+
+        NSLayoutConstraint.activate([
+            text.topAnchor.constraint(equalTo: container.topAnchor, constant: 10),
+            text.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            text.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            text.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
+        ])
+
+        return container
+    }
+
+    private func makeThresholdRow(isWarning: Bool) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let labelText   = isWarning ? "Warning"  : "Critical"
+        let subText     = isWarning ? "orange above this %" : "red above this %"
+        let pctKey      = isWarning ? "warningThreshold"    : "criticalThreshold"
+        let colorKey    = isWarning ? "warningColor"        : "criticalColor"
+        let presets     = isWarning ? warningPresets        : criticalPresets
+        let pctColor    = isWarning ? NSColor(hex: "#C97A58")! : NSColor(hex: "#f87171")!
+
+        let title       = lbl(labelText, size: 13, color: textPri)
+        let subtitle    = lbl(subText,   size: 11, color: textSec)
+        let pctField    = makePctField(key: pctKey, color: pctColor)
+        if isWarning { warningPctField = pctField } else { criticalPctField = pctField }
+
+        let selectedHex = (UserDefaults.standard.string(forKey: colorKey) ?? presets[0]).lowercased()
+
+        let swatchRow = NSStackView()
+        swatchRow.orientation = .horizontal
+        swatchRow.spacing = 6
+        swatchRow.alignment = .centerY
+        swatchRow.translatesAutoresizingMaskIntoConstraints = false
+
+        var buttons: [NSButton] = []
+        for (i, hex) in presets.enumerated() {
+            let btn = makeSwatchBtn(hex: hex, isSelected: hex.lowercased() == selectedHex)
+            btn.tag = i
+            btn.target = self
+            btn.action = isWarning ? #selector(warnSwatchTapped(_:)) : #selector(critSwatchTapped(_:))
+            swatchRow.addArrangedSubview(btn)
+            buttons.append(btn)
+        }
+        if isWarning { warningSwatches = buttons } else { criticalSwatches = buttons }
+
+        let customBtn = NSButton(
+            title: "custom", target: self,
+            action: isWarning ? #selector(openWarningPicker) : #selector(openCriticalPicker)
+        )
+        customBtn.isBordered = false
+        customBtn.wantsLayer = true
+        customBtn.layer!.borderWidth = 1
+        customBtn.layer!.borderColor = NSColor(hex: "#3f3f46")!.cgColor
+        customBtn.layer!.cornerRadius = 4
+        customBtn.font = .systemFont(ofSize: 10)
+        customBtn.contentTintColor = textMuted
+        swatchRow.addArrangedSubview(customBtn)
+
+        [title, subtitle, pctField, swatchRow].forEach { container.addSubview($0) }
+
+        NSLayoutConstraint.activate([
+            title.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            title.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+
+            subtitle.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 2),
+            subtitle.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+
+            pctField.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            pctField.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            pctField.widthAnchor.constraint(equalToConstant: 52),
+            pctField.heightAnchor.constraint(equalToConstant: 30),
+
+            swatchRow.topAnchor.constraint(equalTo: subtitle.bottomAnchor, constant: 10),
+            swatchRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            swatchRow.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+        ])
+
+        return container
+    }
+
     private func makeAboutRow() -> NSView { NSView() }
+
+    // MARK: - Swatch actions
+
+    @objc private func warnSwatchTapped(_ sender: NSButton) {
+        applySwatchSelection(index: sender.tag, swatches: warningSwatches,
+                             presets: warningPresets, colorKey: "warningColor")
+    }
+
+    @objc private func critSwatchTapped(_ sender: NSButton) {
+        applySwatchSelection(index: sender.tag, swatches: criticalSwatches,
+                             presets: criticalPresets, colorKey: "criticalColor")
+    }
+
+    private func applySwatchSelection(index: Int, swatches: [NSButton],
+                                       presets: [String], colorKey: String) {
+        for (i, btn) in swatches.enumerated() {
+            btn.layer!.borderWidth = (i == index) ? 2 : 0
+            btn.layer!.borderColor = (i == index) ? textPri.cgColor : NSColor.clear.cgColor
+        }
+        UserDefaults.standard.set(presets[index], forKey: colorKey)
+    }
+
+    // Placeholder — wired in Task 7
+    @objc private func openWarningPicker() {}
+    @objc private func openCriticalPicker() {}
 
     // MARK: - Login item
 
