@@ -23,7 +23,10 @@ Reads your token from the macOS Keychain (same place Claude Code stores it) and 
    ```
    Or: right-click → Open → Open anyway.
 
-Use the menubar icon menu to enable **Launch at Login**.
+Open **Settings** (click the menubar icon → Settings…, or ⌘,) to configure:
+- Launch at Login
+- Warning/critical usage thresholds (%)
+- Colors for each zone (preset swatches or custom color picker)
 
 ### Build from source
 
