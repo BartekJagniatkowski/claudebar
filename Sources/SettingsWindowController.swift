@@ -222,7 +222,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
             sub.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
 
             githubBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            githubBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            githubBtn.centerYAnchor.constraint(equalTo: title.centerYAnchor),
             githubBtn.widthAnchor.constraint(equalToConstant: 22),
             githubBtn.heightAnchor.constraint(equalToConstant: 22),
         ])
@@ -292,7 +292,8 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
     }
 
     @objc private func openGitHub() {
-        NSWorkspace.shared.open(URL(string: "https://github.com/BartekJagniatkowski/claudebar")!)
+        guard let url = URL(string: "https://github.com/BartekJagniatkowski/claudebar") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     // MARK: - Swatch actions
