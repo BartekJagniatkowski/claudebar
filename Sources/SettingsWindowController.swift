@@ -18,8 +18,8 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
     private var colorPickerController: ColorPickerWindowController?
     private var activeColorKey: String = ""
 
-    let warningPresets  = ["#C97A58", "#e8a87c", "#eab308", "#38bdf8"]
-    let criticalPresets = ["#ef4444", "#f87171", "#f97316", "#a855f7"]
+    private let warningPresets  = ["#C97A58", "#e8a87c", "#eab308", "#38bdf8"]
+    private let criticalPresets = ["#ef4444", "#f87171", "#f97316", "#a855f7"]
 
     init() {
         let win = NSWindow(
@@ -32,6 +32,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         win.appearance = NSAppearance(named: .darkAqua)
         win.backgroundColor = bg
         win.isMovableByWindowBackground = false
+        win.isReleasedWhenClosed = false
         super.init(window: win)
         win.delegate = self
         buildUI()
