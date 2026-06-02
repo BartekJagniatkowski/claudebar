@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2] — 2026-06-02
+
+- Settings window narrowed to 280pt
+- Threshold % fields replaced with sliders; value label shows current %
+- Custom color button now a 24×24 "+" swatch — fills with color and shows selection outline when custom is active
+- Fixed swatch buttons showing spurious "But" label text
+- Hint text shortened; subtitles simplified to "above this %" (no color-specific wording)
+
 ## [1.2.1] — 2026-06-02
 
 - Fix color space drift: custom color picker no longer silently alters saved hex values

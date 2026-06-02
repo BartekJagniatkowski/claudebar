@@ -6,7 +6,7 @@ macOS menubar app showing Claude Code token usage at a glance.
 
 - Menubar item: two lines — top: session `%` + time to session reset; bottom: weekly `%` + time to weekly reset
 - Color-coded zones: orange at ≥75% (warning), red + larger text at ≥90% (critical); rows styled independently
-- Settings window (⌘,): Launch at Login toggle, threshold % fields, color preset swatches, custom color picker
+- Settings window (⌘,): Launch at Login toggle, threshold sliders, color preset swatches, custom color picker
 - Custom color picker: spectrum gradient + hue slider + hex input, styled to match settings window
 - Refreshes every 60s; debounced to never call API faster than 30s
 - Backs off 5 minutes on HTTP 429
@@ -70,7 +70,8 @@ Repo: https://github.com/BartekJagniatkowski/claudebar
 - `NSApp.setActivationPolicy(.accessory)` — no Dock icon
 - `LSUIElement = true` in Info.plist — menubar-only
 - Login item: managed in Settings window — tries `SMAppService.mainApp` (macOS 13 native), falls back to `~/Library/LaunchAgents/net.claudebar.plist`
-- Settings window: Shadcn/ui dark style (`#09090b` bg, `#27272a` borders), 320pt wide, `NSWindow` with `.darkAqua` appearance; `isReleasedWhenClosed = false` on both settings window and color picker panel
+- Settings window: Shadcn/ui dark style (`#09090b` bg, `#27272a` borders), 280pt wide, `NSWindow` with `.darkAqua` appearance; `isReleasedWhenClosed = false` on both settings window and color picker panel
+- Threshold rows use `NSSlider` (1–100) + read-only value label (tagged 101/102 for lookup in `sliderChanged`); custom "+" swatch is 24×24 matching preset size, fills with picked color + 2px white outline when active
 - Color picker: `SpectrumView` uses two stacked `CAGradientLayer`s (horizontal: white→hue, vertical: clear→black); `HueSliderView` uses gradient with 30° stops; `hexString`/`init?(hex:)` both use `deviceRGB` to prevent color space drift
 - Two-line menubar title via `NSAttributedString` with `\n`, Menlo 9pt, `baselineOffset: -4`
 - `NSColor.labelColor` for text — auto-adapts dark/light mode
