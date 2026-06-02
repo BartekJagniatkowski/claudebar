@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0] — 2026-06-02
+
+- Settings window (⌘,): Launch at Login toggle, warning/critical threshold %, color preset swatches, custom color picker
+- Custom color picker panel: spectrum gradient, hue slider, hex input field — styled to match settings window (#09090b background)
+- Removed "Launch at Login" menu item (moved to Settings window)
+- Renamed "Quit claudebar" to "Quit ClaudeBar"
+- Build now compiles all Sources/*.swift
+
 ## [1.1.0] — 2026-06-02
 
 ### Added
