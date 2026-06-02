@@ -128,10 +128,10 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
     @objc private func didToggleLogin() {
         if #available(macOS 13.0, *) {
             let svc = SMAppService.mainApp
+            let shouldEnable = svc.status != .enabled
             do {
-                if svc.status == .enabled { try svc.unregister() }
-                else { try svc.register() }
-                loginToggle.isOn = (svc.status == .enabled)
+                try shouldEnable ? svc.register() : svc.unregister()
+                loginToggle.isOn = shouldEnable
                 return
             } catch {}
         }
@@ -153,11 +153,10 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
                 "RunAtLoad":        true,
                 "KeepAlive":        false,
             ]
-            if let data = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0) {
-                try? data.write(to: url)
-                launchctl("load", url.path)
-                loginToggle.isOn = true
-            }
+            guard let data = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0),
+                  (try? data.write(to: url)) != nil else { return }
+            launchctl("load", url.path)
+            loginToggle.isOn = FileManager.default.fileExists(atPath: url.path)
         }
     }
 
@@ -165,7 +164,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         p.arguments = [verb, path]
-        try? p.run()
+        guard (try? p.run()) != nil else { return }
         p.waitUntilExit()
     }
 
