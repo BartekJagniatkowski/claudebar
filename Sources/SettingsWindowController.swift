@@ -198,7 +198,102 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         return container
     }
 
-    private func makeAboutRow() -> NSView { NSView() }
+    private func makeAboutRow() -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let title   = lbl("ClaudeBar", size: 13, color: textPri)
+        let sub     = lbl("v\(version)", size: 11, color: textMuted)
+
+        let githubBtn = NSButton(title: "", target: self, action: #selector(openGitHub))
+        githubBtn.isBordered = false
+        githubBtn.image = makeGitHubIcon()
+        githubBtn.translatesAutoresizingMaskIntoConstraints = false
+
+        [title, sub, githubBtn].forEach { container.addSubview($0) }
+
+        NSLayoutConstraint.activate([
+            title.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            title.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+
+            sub.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 2),
+            sub.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            sub.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+
+            githubBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            githubBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            githubBtn.widthAnchor.constraint(equalToConstant: 22),
+            githubBtn.heightAnchor.constraint(equalToConstant: 22),
+        ])
+
+        return container
+    }
+
+    private func makeGitHubIcon() -> NSImage {
+        // GitHub mark rendered via CGPath, 16×16 viewBox scaled to 18×18, y-flipped for NSImage
+        NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            textMuted.setFill()
+            ctx.saveGState()
+            ctx.translateBy(x: 0, y: 18)
+            ctx.scaleBy(x: 18.0/16.0, y: -18.0/16.0)
+            let p = CGMutablePath()
+            p.move(to: .init(x: 8, y: 0))
+            p.addCurve(to: .init(x: 0, y: 8),
+                       control1: .init(x: 3.58, y: 0), control2: .init(x: 0, y: 3.58))
+            p.addCurve(to: .init(x: 5.47, y: 15.59),
+                       control1: .init(x: 0, y: 11.54), control2: .init(x: 2.29, y: 14.53))
+            p.addCurve(to: .init(x: 5.46, y: 13.21),
+                       control1: .init(x: 5.87, y: 15.66), control2: .init(x: 6.02, y: 15.42))
+            p.addCurve(to: .init(x: 2.77, y: 12.27),
+                       control1: .init(x: 3.45, y: 13.58), control2: .init(x: 2.93, y: 12.76))
+            p.addCurve(to: .init(x: 1.95, y: 10.61),
+                       control1: .init(x: 2.68, y: 12.04), control2: .init(x: 2.29, y: 11.33))
+            p.addCurve(to: .init(x: 3.18, y: 11.43),
+                       control1: .init(x: 1.67, y: 10.99), control2: .init(x: 2.58, y: 10.6))
+            p.addCurve(to: .init(x: 5.19, y: 11.02),
+                       control1: .init(x: 3.97, y: 12.09), control2: .init(x: 4.96, y: 12.09))
+            p.addCurve(to: .init(x: 1.55, y: 7.07),
+                       control1: .init(x: 5.17, y: 11.61), control2: .init(x: 1.55, y: 10.13))
+            p.addCurve(to: .init(x: 2.37, y: 4.92),
+                       control1: .init(x: 1.55, y: 6.2), control2: .init(x: 1.86, y: 5.48))
+            p.addCurve(to: .init(x: 2.45, y: 2.8),
+                       control1: .init(x: 2.29, y: 4.72), control2: .init(x: 2.01, y: 3.9))
+            p.addCurve(to: .init(x: 4.65, y: 3.62),
+                       control1: .init(x: 2.45, y: 2.8), control2: .init(x: 3.12, y: 2.59))
+            p.addCurve(to: .init(x: 8, y: 3.35),
+                       control1: .init(x: 5.29, y: 3.44), control2: .init(x: 6.61, y: 3.35))
+            p.addCurve(to: .init(x: 11.35, y: 3.62),
+                       control1: .init(x: 9.39, y: 3.35), control2: .init(x: 10.71, y: 3.44))
+            p.addCurve(to: .init(x: 13.55, y: 2.8),
+                       control1: .init(x: 12.88, y: 2.59), control2: .init(x: 13.55, y: 2.8))
+            p.addCurve(to: .init(x: 13.63, y: 4.92),
+                       control1: .init(x: 13.99, y: 3.9), control2: .init(x: 13.71, y: 4.72))
+            p.addCurve(to: .init(x: 14.45, y: 7.07),
+                       control1: .init(x: 14.14, y: 5.48), control2: .init(x: 14.45, y: 6.2))
+            p.addCurve(to: .init(x: 10.81, y: 11.02),
+                       control1: .init(x: 14.45, y: 10.13), control2: .init(x: 12.59, y: 10.82))
+            p.addCurve(to: .init(x: 11.35, y: 13.85),
+                       control1: .init(x: 11.05, y: 12.09), control2: .init(x: 11.04, y: 12.09))
+            p.addLine(to: .init(x: 11.34, y: 14.32))
+            p.addCurve(to: .init(x: 10.53, y: 15.59),
+                       control1: .init(x: 11.34, y: 15.42), control2: .init(x: 11.19, y: 15.66))
+            p.addCurve(to: .init(x: 16, y: 8),
+                       control1: .init(x: 13.71, y: 14.53), control2: .init(x: 16, y: 11.54))
+            p.addCurve(to: .init(x: 8, y: 0),
+                       control1: .init(x: 16, y: 3.58), control2: .init(x: 12.42, y: 0))
+            p.closeSubpath()
+            ctx.addPath(p)
+            ctx.fillPath()
+            ctx.restoreGState()
+            return true
+        }
+    }
+
+    @objc private func openGitHub() {
+        NSWorkspace.shared.open(URL(string: "https://github.com/BartekJagniatkowski/claudebar")!)
+    }
 
     // MARK: - Swatch actions
 
