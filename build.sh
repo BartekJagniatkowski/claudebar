@@ -3,10 +3,8 @@ set -e
 
 APP="ClaudeBar.app"
 BUNDLE_ID="net.claudebar"
-SRC="Sources/main.swift"
-
 echo "→ Compiling..."
-swiftc "$SRC" \
+swiftc Sources/*.swift \
     -framework AppKit \
     -framework ServiceManagement \
     -O \

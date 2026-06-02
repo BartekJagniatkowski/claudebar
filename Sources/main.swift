@@ -19,6 +19,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var lastCallDate: Date = .distantPast
     private var backoffUntil: Date = .distantPast
+    private var settingsController: SettingsWindowController?
 
     private let pollInterval: TimeInterval = 60
     private let minCallGap: TimeInterval = 30
@@ -29,15 +30,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "warningThreshold": 0.75,
             "criticalThreshold": 0.90,
             "warningColor": "#C97A58",
-            "criticalColor": "systemRed",
+            "criticalColor": "#ef4444",
         ])
-
         NSApp.setActivationPolicy(.accessory)
-
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         setDisplay("C…", "")
         buildMenu()
-
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             self?.refresh()
@@ -48,87 +46,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() {
         let menu = NSMenu()
-
-        let loginItem = NSMenuItem(
-            title: "Launch at Login",
-            action: #selector(toggleLogin(_:)),
-            keyEquivalent: ""
-        )
-        loginItem.state = loginEnabled ? .on : .off
-        menu.addItem(loginItem)
-
+        menu.addItem(NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        ))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
-            title: "Quit claudebar",
+            title: "Quit ClaudeBar",
             action: #selector(NSApp.terminate(_:)),
             keyEquivalent: "q"
         ))
-
         statusItem.menu = menu
     }
 
-    // MARK: - Login item
-
-    private var loginEnabled: Bool {
-        if #available(macOS 13.0, *) {
-            return SMAppService.mainApp.status == .enabled
+    @objc private func openSettings() {
+        if settingsController == nil {
+            settingsController = SettingsWindowController()
         }
-        return FileManager.default.fileExists(atPath: launchAgentURL.path)
-    }
-
-    private var launchAgentURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/LaunchAgents/net.claudebar.plist")
-    }
-
-    @objc private func toggleLogin(_ sender: NSMenuItem) {
-        if #available(macOS 13.0, *) {
-            let svc = SMAppService.mainApp
-            do {
-                if svc.status == .enabled {
-                    try svc.unregister()
-                    sender.state = .off
-                } else {
-                    try svc.register()
-                    sender.state = .on
-                }
-                return
-            } catch {}
-        }
-        toggleLaunchAgent(sender)
-    }
-
-    private func toggleLaunchAgent(_ sender: NSMenuItem) {
-        let url = launchAgentURL
-        if FileManager.default.fileExists(atPath: url.path) {
-            launchctl("unload", url.path)
-            try? FileManager.default.removeItem(at: url)
-            sender.state = .off
-        } else {
-            let exe = Bundle.main.executablePath
-                ?? "/Applications/claudebar.app/Contents/MacOS/claudebar"
-            let plist: [String: Any] = [
-                "Label": "net.claudebar",
-                "ProgramArguments": [exe],
-                "RunAtLoad": true,
-                "KeepAlive": false,
-            ]
-            if let data = try? PropertyListSerialization.data(
-                fromPropertyList: plist, format: .xml, options: 0
-            ) {
-                try? data.write(to: url)
-                launchctl("load", url.path)
-                sender.state = .on
-            }
-        }
-    }
-
-    private func launchctl(_ verb: String, _ path: String) {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        p.arguments = [verb, path]
-        try? p.run()
-        p.waitUntilExit()
+        settingsController?.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - Display
@@ -139,13 +76,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         color2: NSColor = .labelColor, size2: CGFloat = 9
     ) {
         guard let button = statusItem?.button else { return }
-
         let para = NSMutableParagraphStyle()
         para.alignment = .center
         para.lineSpacing = 0
         para.maximumLineHeight = 11
         para.minimumLineHeight = 11
-
         func rowAttrs(color: NSColor, size: CGFloat) -> [NSAttributedString.Key: Any] {
             [
                 .font: NSFont(name: "Menlo", size: size)
@@ -155,16 +90,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 .baselineOffset: -4,
             ]
         }
-
         if line2.isEmpty {
             button.attributedTitle = NSAttributedString(
                 string: line1, attributes: rowAttrs(color: color1, size: size1)
             )
         } else {
             let s = NSMutableAttributedString()
-            s.append(NSAttributedString(string: line1,  attributes: rowAttrs(color: color1, size: size1)))
-            s.append(NSAttributedString(string: "\n",   attributes: rowAttrs(color: color1, size: size1)))
-            s.append(NSAttributedString(string: line2,  attributes: rowAttrs(color: color2, size: size2)))
+            s.append(NSAttributedString(string: line1, attributes: rowAttrs(color: color1, size: size1)))
+            s.append(NSAttributedString(string: "\n",  attributes: rowAttrs(color: color1, size: size1)))
+            s.append(NSAttributedString(string: line2, attributes: rowAttrs(color: color2, size: size2)))
             button.attributedTitle = s
         }
     }
@@ -201,22 +135,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let now = Date()
         guard now >= backoffUntil, now.timeIntervalSince(lastCallDate) >= minCallGap else { return }
         lastCallDate = now
-
         DispatchQueue.global(qos: .background).async { [weak self] in
             guard let self else { return }
-
             guard let token = self.getToken() else {
                 DispatchQueue.main.async { self.setDisplay("C?", "re-auth") }
                 return
             }
-
             var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!)
             req.timeoutInterval = 10
             req.setValue("application/json", forHTTPHeaderField: "Accept")
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
             req.setValue("claude-code/2.1.0", forHTTPHeaderField: "User-Agent")
-
             URLSession.shared.dataTask(with: req) { data, response, _ in
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
                 DispatchQueue.main.async { self.handleResponse(code: code, data: data) }
@@ -229,10 +159,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         case 200:
             guard let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else {
-                setDisplay("C?", "parse err")
-                return
-            }
+            else { setDisplay("C?", "parse err"); return }
             let fh = json["five_hour"] as? [String: Any] ?? [:]
             let sd = json["seven_day"]  as? [String: Any] ?? [:]
             let sessionRaw   = fh["utilization"] as? Double ?? 0
@@ -246,16 +173,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             setDisplay(
                 "\(sessionPct)% \(sessionReset)",
                 "\(weeklyPct)% \(weeklyReset)",
-                color1: c1, size1: s1,
-                color2: c2, size2: s2
+                color1: c1, size1: s1, color2: c2, size2: s2
             )
-        case 401:
-            setDisplay("401", "re-auth")
+        case 401: setDisplay("401", "re-auth")
         case 429:
             backoffUntil = Date().addingTimeInterval(backoffDuration)
             setDisplay("429", "5m wait")
-        default:
-            setDisplay("C\(code)", "")
+        default: setDisplay("C\(code)", "")
         }
     }
 
@@ -283,7 +207,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func colorFromDefaults(key: String, fallback: NSColor) -> NSColor {
         let val = UserDefaults.standard.string(forKey: key) ?? ""
-        if val == "systemRed" { return .systemRed }
         return NSColor(hex: val) ?? fallback
     }
 
@@ -312,5 +235,13 @@ extension NSColor {
             blue:  CGFloat( value        & 0xFF) / 255,
             alpha: 1
         )
+    }
+
+    var hexString: String {
+        guard let c = usingColorSpace(.deviceRGB) else { return "#000000" }
+        return String(format: "#%02X%02X%02X",
+            Int(c.redComponent   * 255),
+            Int(c.greenComponent * 255),
+            Int(c.blueComponent  * 255))
     }
 }
