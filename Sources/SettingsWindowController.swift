@@ -76,10 +76,98 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
 
     // MARK: - Row stubs (filled in Tasks 3–5)
 
-    private func makeLoginRow() -> NSView { NSView() }
+    private func makeLoginRow() -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let title    = lbl("Launch at Login", size: 13, color: textPri)
+        let subtitle = lbl("Start ClaudeBar when you log in", size: 11, color: textSec)
+        loginToggle = ToggleButton(frame: .zero)
+        loginToggle.isOn = isLoginEnabled
+        loginToggle.target = self
+        loginToggle.action = #selector(didToggleLogin)
+        loginToggle.translatesAutoresizingMaskIntoConstraints = false
+
+        [title, subtitle, loginToggle].forEach { container.addSubview($0) }
+
+        NSLayoutConstraint.activate([
+            title.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
+            title.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            title.trailingAnchor.constraint(lessThanOrEqualTo: loginToggle.leadingAnchor, constant: -8),
+
+            subtitle.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 2),
+            subtitle.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            subtitle.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
+
+            loginToggle.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            loginToggle.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            loginToggle.widthAnchor.constraint(equalToConstant: 38),
+            loginToggle.heightAnchor.constraint(equalToConstant: 22),
+        ])
+
+        return container
+    }
     private func makeExplanationRow() -> NSView { NSView() }
     private func makeThresholdRow(isWarning: Bool) -> NSView { NSView() }
     private func makeAboutRow() -> NSView { NSView() }
+
+    // MARK: - Login item
+
+    private var isLoginEnabled: Bool {
+        if #available(macOS 13.0, *) {
+            return SMAppService.mainApp.status == .enabled
+        }
+        return FileManager.default.fileExists(atPath: launchAgentURL.path)
+    }
+
+    private var launchAgentURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/net.claudebar.plist")
+    }
+
+    @objc private func didToggleLogin() {
+        if #available(macOS 13.0, *) {
+            let svc = SMAppService.mainApp
+            do {
+                if svc.status == .enabled { try svc.unregister() }
+                else { try svc.register() }
+                loginToggle.isOn = (svc.status == .enabled)
+                return
+            } catch {}
+        }
+        toggleLaunchAgent()
+    }
+
+    private func toggleLaunchAgent() {
+        let url = launchAgentURL
+        if FileManager.default.fileExists(atPath: url.path) {
+            launchctl("unload", url.path)
+            try? FileManager.default.removeItem(at: url)
+            loginToggle.isOn = false
+        } else {
+            let exe = Bundle.main.executablePath
+                ?? "/Applications/ClaudeBar.app/Contents/MacOS/claudebar"
+            let plist: [String: Any] = [
+                "Label":            "net.claudebar",
+                "ProgramArguments": [exe],
+                "RunAtLoad":        true,
+                "KeepAlive":        false,
+            ]
+            if let data = try? PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0) {
+                try? data.write(to: url)
+                launchctl("load", url.path)
+                loginToggle.isOn = true
+            }
+        }
+    }
+
+    private func launchctl(_ verb: String, _ path: String) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        p.arguments = [verb, path]
+        try? p.run()
+        p.waitUntilExit()
+    }
 
     // MARK: - Shared helpers
 
