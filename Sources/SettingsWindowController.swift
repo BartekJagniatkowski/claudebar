@@ -11,8 +11,8 @@ private let textMuted = NSColor(hex: "#52525b")!
 class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
 
     private var loginToggle: ToggleButton!
-    private var warningPctField: NSTextField!
-    private var criticalPctField: NSTextField!
+    private var warningCustomBtn: NSButton!
+    private var criticalCustomBtn: NSButton!
     private var warningSwatches: [NSButton] = []
     private var criticalSwatches: [NSButton] = []
     private var colorPickerController: ColorPickerWindowController?
@@ -22,7 +22,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
 
     init() {
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 100),
+            contentRect: NSRect(x: 0, y: 0, width: 280, height: 100),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -69,7 +69,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
 
         content.layoutSubtreeIfNeeded()
         let h = stack.fittingSize.height + 16
-        window!.setContentSize(NSSize(width: 320, height: max(h, 360)))
+        window!.setContentSize(NSSize(width: 280, height: max(h, 360)))
         window!.center()
     }
 
@@ -111,7 +111,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         container.translatesAutoresizingMaskIntoConstraints = false
 
         let text = lbl(
-            "Menubar text shifts color when session or weekly usage crosses a threshold. Each row is evaluated independently.",
+            "Menubar text color changes when usage crosses these thresholds.",
             size: 11, color: textMuted
         )
         text.maximumNumberOfLines = 0
@@ -131,19 +131,30 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
 
-        let labelText   = isWarning ? "Warning"  : "Critical"
-        let subText     = isWarning ? "orange above this %" : "red above this %"
-        let pctKey      = isWarning ? "warningThreshold"    : "criticalThreshold"
-        let colorKey    = isWarning ? "warningColor"        : "criticalColor"
-        let presets     = isWarning ? warningPresets        : criticalPresets
-        let pctColor    = isWarning ? NSColor(hex: "#C97A58")! : NSColor(hex: "#f87171")!
+        let labelText = isWarning ? "Warning" : "Critical"
+        let pctKey    = isWarning ? "warningThreshold" : "criticalThreshold"
+        let colorKey  = isWarning ? "warningColor"     : "criticalColor"
+        let presets   = isWarning ? warningPresets      : criticalPresets
+        let valColor  = isWarning ? NSColor(hex: "#C97A58")! : NSColor(hex: "#f87171")!
 
-        let title       = lbl(labelText, size: 13, color: textPri)
-        let subtitle    = lbl(subText,   size: 11, color: textSec)
-        let pctField    = makePctField(key: pctKey, color: pctColor)
-        if isWarning { warningPctField = pctField } else { criticalPctField = pctField }
+        let currentVal = Int((UserDefaults.standard.double(forKey: pctKey) * 100).rounded())
 
+        let title    = lbl(labelText, size: 13, color: textPri)
+        let subtitle = lbl("above this %", size: 11, color: textSec)
+
+        // Value label (right-aligned, shows current %)
+        let valueLabel = NSTextField(labelWithString: "\(currentVal)%")
+        valueLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        valueLabel.textColor = valColor
+        valueLabel.alignment = .right
+        valueLabel.tag = isWarning ? 101 : 102
+        valueLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let slider = makeSlider(key: pctKey)
+
+        // Swatch row
         let selectedHex = (UserDefaults.standard.string(forKey: colorKey) ?? presets[0]).lowercased()
+        let isCustomSelected = !presets.map { $0.lowercased() }.contains(selectedHex)
 
         let swatchRow = NSStackView()
         swatchRow.orientation = .horizontal
@@ -162,20 +173,37 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         }
         if isWarning { warningSwatches = buttons } else { criticalSwatches = buttons }
 
-        let customBtn = NSButton(
-            title: "custom", target: self,
-            action: isWarning ? #selector(openWarningPicker) : #selector(openCriticalPicker)
-        )
+        // Custom "+" button — shows current custom color if active, else "+" border
+        let customBtn = NSButton()
         customBtn.isBordered = false
         customBtn.wantsLayer = true
-        customBtn.layer!.borderWidth = 1
-        customBtn.layer!.borderColor = NSColor(hex: "#3f3f46")!.cgColor
         customBtn.layer!.cornerRadius = 4
-        customBtn.font = .systemFont(ofSize: 10)
-        customBtn.contentTintColor = textMuted
+        customBtn.title = ""
+        customBtn.target = self
+        customBtn.action = isWarning ? #selector(openWarningPicker) : #selector(openCriticalPicker)
+        customBtn.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            customBtn.widthAnchor.constraint(equalToConstant: 24),
+            customBtn.heightAnchor.constraint(equalToConstant: 24),
+        ])
+        if isCustomSelected, let color = NSColor(hex: selectedHex) {
+            customBtn.layer!.backgroundColor = color.cgColor
+            customBtn.layer!.borderWidth = 2
+            customBtn.layer!.borderColor = textPri.cgColor
+        } else {
+            customBtn.layer!.backgroundColor = NSColor.clear.cgColor
+            customBtn.layer!.borderWidth = 1
+            customBtn.layer!.borderColor = NSColor(hex: "#3f3f46")!.cgColor
+            // Draw "+" as attributed title
+            let plus = NSMutableAttributedString(string: "+")
+            plus.addAttribute(.foregroundColor, value: textMuted, range: NSRange(location: 0, length: 1))
+            plus.addAttribute(.font, value: NSFont.systemFont(ofSize: 14, weight: .light), range: NSRange(location: 0, length: 1))
+            customBtn.attributedTitle = plus
+        }
+        if isWarning { warningCustomBtn = customBtn } else { criticalCustomBtn = customBtn }
         swatchRow.addArrangedSubview(customBtn)
 
-        [title, subtitle, pctField, swatchRow].forEach { container.addSubview($0) }
+        [title, subtitle, valueLabel, slider, swatchRow].forEach { container.addSubview($0) }
 
         NSLayoutConstraint.activate([
             title.topAnchor.constraint(equalTo: container.topAnchor, constant: 14),
@@ -184,12 +212,15 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
             subtitle.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 2),
             subtitle.leadingAnchor.constraint(equalTo: container.leadingAnchor),
 
-            pctField.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            pctField.centerYAnchor.constraint(equalTo: title.centerYAnchor),
-            pctField.widthAnchor.constraint(equalToConstant: 52),
-            pctField.heightAnchor.constraint(equalToConstant: 30),
+            valueLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            valueLabel.centerYAnchor.constraint(equalTo: title.centerYAnchor),
+            valueLabel.widthAnchor.constraint(equalToConstant: 40),
 
-            swatchRow.topAnchor.constraint(equalTo: subtitle.bottomAnchor, constant: 10),
+            slider.topAnchor.constraint(equalTo: subtitle.bottomAnchor, constant: 8),
+            slider.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            slider.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            swatchRow.topAnchor.constraint(equalTo: slider.bottomAnchor, constant: 8),
             swatchRow.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             swatchRow.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -14),
         ])
@@ -314,6 +345,17 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
             btn.layer!.borderColor = (i == index) ? textPri.cgColor : NSColor.clear.cgColor
         }
         UserDefaults.standard.set(presets[index], forKey: colorKey)
+        // Reset custom button to "+" state
+        let customBtn = colorKey == "warningColor" ? warningCustomBtn : criticalCustomBtn
+        if let btn = customBtn {
+            btn.layer!.backgroundColor = NSColor.clear.cgColor
+            btn.layer!.borderWidth = 1
+            btn.layer!.borderColor = NSColor(hex: "#3f3f46")!.cgColor
+            let plus = NSMutableAttributedString(string: "+")
+            plus.addAttribute(.foregroundColor, value: textMuted, range: NSRange(location: 0, length: 1))
+            plus.addAttribute(.font, value: NSFont.systemFont(ofSize: 14, weight: .light), range: NSRange(location: 0, length: 1))
+            btn.attributedTitle = plus
+        }
     }
 
     @objc private func openWarningPicker() {
@@ -333,10 +375,17 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         picker.onColorSelected = { [weak self] color in
             guard let self else { return }
             UserDefaults.standard.set(color.hexString, forKey: colorKey)
-            // Deselect all preset swatches since a custom color is now active
             for btn in swatches {
                 btn.layer!.borderWidth = 0
                 btn.layer!.borderColor = NSColor.clear.cgColor
+            }
+            // Show picked color in custom button with selection state
+            let customBtn = colorKey == "warningColor" ? self.warningCustomBtn : self.criticalCustomBtn
+            if let btn = customBtn {
+                btn.layer!.backgroundColor = color.cgColor
+                btn.attributedTitle = NSAttributedString(string: "")
+                btn.layer!.borderWidth = 2
+                btn.layer!.borderColor = textPri.cgColor
             }
             self.colorPickerController = nil
         }
@@ -422,28 +471,34 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         return f
     }
 
-    private func makePctField(key: String, color: NSColor) -> NSTextField {
+    private func makeSlider(key: String) -> NSSlider {
         let val = Int((UserDefaults.standard.double(forKey: key) * 100).rounded())
-        let f = NSTextField()
-        f.stringValue = "\(val)"
-        f.font = .systemFont(ofSize: 13)
-        f.textColor = color
-        f.isBezeled = false
-        f.drawsBackground = true
-        f.backgroundColor = bg
-        f.alignment = .center
-        f.wantsLayer = true
-        f.layer!.cornerRadius = 6
-        f.layer!.borderWidth = 1
-        f.layer!.borderColor = border.cgColor
-        f.delegate = self
-        f.identifier = NSUserInterfaceItemIdentifier(key)
-        f.translatesAutoresizingMaskIntoConstraints = false
-        return f
+        let s = NSSlider()
+        s.minValue = 1
+        s.maxValue = 100
+        s.integerValue = val
+        s.controlSize = .small
+        s.identifier = NSUserInterfaceItemIdentifier(key)
+        s.target = self
+        s.action = #selector(sliderChanged(_:))
+        s.translatesAutoresizingMaskIntoConstraints = false
+        return s
+    }
+
+    @objc private func sliderChanged(_ sender: NSSlider) {
+        let key = sender.identifier?.rawValue ?? ""
+        guard key == "warningThreshold" || key == "criticalThreshold" else { return }
+        UserDefaults.standard.set(Double(sender.integerValue) / 100.0, forKey: key)
+        // Update value label tag: warning=101, critical=102
+        let tag = key == "warningThreshold" ? 101 : 102
+        if let label = sender.superview?.viewWithTag(tag) as? NSTextField {
+            label.stringValue = "\(sender.integerValue)%"
+        }
     }
 
     private func makeSwatchBtn(hex: String, isSelected: Bool) -> NSButton {
         let btn = NSButton()
+        btn.title = ""
         btn.isBordered = false
         btn.wantsLayer = true
         btn.layer!.cornerRadius = 4
