@@ -77,7 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         guard let button = statusItem?.button else { return }
         let para = NSMutableParagraphStyle()
-        para.alignment = .center
+        para.alignment = .left
         para.lineSpacing = 0
         para.maximumLineHeight = 11
         para.minimumLineHeight = 11

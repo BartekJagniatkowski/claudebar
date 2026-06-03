@@ -7,6 +7,7 @@
 - Fixed `didToggleLogin`: on SMAppService error, toggle now reflects actual login-item state instead of staying wrong; macOS 13+ no longer falls through to LaunchAgent path on failure
 - Fixed `build.sh`: `CFBundleIconFile` plist key now correctly omitted when `AppIcon.icns` is absent
 - Removed dead `controlTextDidEndEditing` delegate method and `NSTextFieldDelegate` conformance from `SettingsWindowController` (leftover from pre-slider design)
+- Menubar text alignment changed from center to left
 
 ## [1.2.2] — 2026-06-02
 
