@@ -42,8 +42,7 @@ cat > "$APP/Contents/Info.plist" << PLIST
     <string>1.2.2</string>
     <key>CFBundleShortVersionString</key>
     <string>1.2.2</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
+    ${ICON_KEY}
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>

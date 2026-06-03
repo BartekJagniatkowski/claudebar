@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.3] — 2026-06-03
+
+- Fixed error display: 401 and 429 responses now show `C401`/`C429` (consistent with `C?` and `C\(code)` pattern)
+- Rate-limit message changed from `5m wait` to `5 min wait` for clarity
+- Fixed `didToggleLogin`: on SMAppService error, toggle now reflects actual login-item state instead of staying wrong; macOS 13+ no longer falls through to LaunchAgent path on failure
+- Fixed `build.sh`: `CFBundleIconFile` plist key now correctly omitted when `AppIcon.icns` is absent
+- Removed dead `controlTextDidEndEditing` delegate method and `NSTextFieldDelegate` conformance from `SettingsWindowController` (leftover from pre-slider design)
+
 ## [1.2.2] — 2026-06-02
 
 - Settings window narrowed to 280pt

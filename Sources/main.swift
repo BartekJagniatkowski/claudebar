@@ -175,10 +175,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 "\(weeklyPct)% \(weeklyReset)",
                 color1: c1, size1: s1, color2: c2, size2: s2
             )
-        case 401: setDisplay("401", "re-auth")
+        case 401: setDisplay("C401", "re-auth")
         case 429:
             backoffUntil = Date().addingTimeInterval(backoffDuration)
-            setDisplay("429", "5m wait")
+            setDisplay("C429", "5 min wait")
         default: setDisplay("C\(code)", "")
         }
     }

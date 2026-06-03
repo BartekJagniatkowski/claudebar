@@ -8,7 +8,7 @@ private let textPri   = NSColor(hex: "#fafafa")!
 private let textSec   = NSColor(hex: "#71717a")!
 private let textMuted = NSColor(hex: "#52525b")!
 
-class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFieldDelegate {
+class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private var loginToggle: ToggleButton!
     private var warningCustomBtn: NSButton!
@@ -73,7 +73,7 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         window!.center()
     }
 
-    // MARK: - Row stubs (filled in Tasks 3–5)
+    // MARK: - Rows
 
     private func makeLoginRow() -> NSView {
         let container = NSView()
@@ -415,8 +415,10 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
             do {
                 try shouldEnable ? svc.register() : svc.unregister()
                 loginToggle.isOn = shouldEnable
-                return
-            } catch {}
+            } catch {
+                loginToggle.isOn = svc.status == .enabled
+            }
+            return
         }
         toggleLaunchAgent()
     }
@@ -515,20 +517,6 @@ class SettingsWindowController: NSWindowController, NSWindowDelegate, NSTextFiel
         return btn
     }
 
-    // MARK: - NSTextFieldDelegate — percent fields
-
-    func controlTextDidEndEditing(_ obj: Notification) {
-        guard let field = obj.object as? NSTextField else { return }
-        let key = field.identifier?.rawValue ?? ""
-        guard key == "warningThreshold" || key == "criticalThreshold" else { return }
-        let text = field.stringValue.trimmingCharacters(in: .whitespaces)
-        if let val = Int(text), val >= 1, val <= 100 {
-            UserDefaults.standard.set(Double(val) / 100.0, forKey: key)
-            field.layer!.borderColor = border.cgColor
-        } else {
-            field.layer!.borderColor = NSColor.systemRed.cgColor
-        }
-    }
 }
 
 // MARK: - ToggleButton
