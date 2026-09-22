@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.0] — 2026-09-22
+
+- Settings moved from a separate ⌘,-opened window into an `NSPopover` shown by clicking the menubar icon directly (Control Center-style); the old dropdown menu is gone
+- Popover redesigned: app icon + GitHub link header, live Session/Weekly usage card (same zone coloring as the menubar text), custom `PillSlider` threshold controls (colored fill, draggable), two independent color pickers (one per threshold, each with its own presets + custom swatch)
+- Quit row: icon + label + ⌘Q shortcut chip, accent-color hover highlight, working ⌘Q key equivalent
+- Custom color picker restyled to match the popover — borderless frosted-glass panel instead of a titled `#09090b` window; opens centered over the popover instead of a separate screen location and survives the popover closing while it's open
+- Custom swatch icon changed from a "+" to a rainbow color-wheel glyph
+- Fixed: color picker's Escape key was closing the popover instead of itself (`NSPopover` watches Escape globally); fixed: picker committing a stale/reverted color when reopened; fixed: threshold slider intermittently rendering at the wrong width mid-drag; added zero-bounds guards against a possible NaN crash in the slider/spectrum/hue drag handlers
+
 ## [1.2.4] — 2026-06-03
 
 - Menubar text alignment changed from center to left

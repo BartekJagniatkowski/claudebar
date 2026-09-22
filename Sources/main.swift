@@ -19,7 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var lastCallDate: Date = .distantPast
     private var backoffUntil: Date = .distantPast
-    private var settingsController: SettingsWindowController?
+    private var popover: NSPopover?
+    private var colorPickerController: ColorPickerWindowController?
+    private var lastUsage = UsageSnapshot()
 
     private let pollInterval: TimeInterval = 60
     private let minCallGap: TimeInterval = 30
@@ -35,37 +37,70 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         setDisplay("C…", "")
-        buildMenu()
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(togglePopover)
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
     }
 
-    // MARK: - Menu
+    // MARK: - Popover
 
-    private func buildMenu() {
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(
-            title: "Settings…",
-            action: #selector(openSettings),
-            keyEquivalent: ","
-        ))
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(
-            title: "Quit ClaudeBar",
-            action: #selector(NSApp.terminate(_:)),
-            keyEquivalent: "q"
-        ))
-        statusItem.menu = menu
+    @objc private func togglePopover() {
+        if let popover, popover.isShown {
+            popover.performClose(nil)
+            return
+        }
+        guard let button = statusItem.button else { return }
+        let pop = NSPopover()
+        pop.contentViewController = SettingsViewController(usage: lastUsage) { [weak self] initial, completion in
+            self?.presentColorPicker(initial: initial, completion: completion)
+        }
+        pop.behavior = .semitransient
+        pop.appearance = NSAppearance(named: .darkAqua)
+        popover = pop
+        pop.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func openSettings() {
-        if settingsController == nil {
-            settingsController = SettingsWindowController()
+    // MARK: - Color picker
+
+    // Owned here (not by the popover's view controller) so it survives even if the
+    // popover closes while the picker is open — the popover is short-lived and gets
+    // torn down often; the picker needs to outlive it.
+    private func presentColorPicker(initial: NSColor, completion: @escaping (NSColor) -> Void) {
+        colorPickerController?.onColorSelected = nil
+        colorPickerController?.window?.close()
+
+        // NSPopover watches for Escape itself, independent of which window is key, and
+        // closes on it — .applicationDefined turns that automatic dismissal off while the
+        // picker owns Escape (via its own cancelOperation), restored once it's done.
+        popover?.behavior = .applicationDefined
+
+        let picker = ColorPickerWindowController(initialColor: initial)
+        picker.onColorSelected = { [weak self] color in
+            completion(color)
+            self?.colorPickerController = nil
+            self?.popover?.behavior = .semitransient
         }
-        settingsController?.showWindow(nil)
+        colorPickerController = picker
+        // Center it directly over the still-open popover (the popover sits near the top
+        // of the screen with no room above it) — the panel's elevated window level keeps
+        // it visually on top rather than tucked behind.
+        if let window = picker.window {
+            if let popoverFrame = popover?.contentViewController?.view.window?.frame {
+                let x = popoverFrame.midX - window.frame.width / 2
+                let y = popoverFrame.midY - window.frame.height / 2
+                window.setFrameOrigin(NSPoint(x: x, y: y))
+            } else if let screen = NSScreen.main {
+                let origin = NSPoint(x: screen.visibleFrame.minX + 60, y: screen.visibleFrame.maxY - 60 - window.frame.height)
+                window.setFrameOrigin(origin)
+            }
+        }
         NSApp.activate(ignoringOtherApps: true)
+        picker.showWindow(nil)
+        picker.window?.makeKeyAndOrderFront(nil)
     }
 
     // MARK: - Display
@@ -170,6 +205,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let weeklyReset  = timeUntil(sd["resets_at"] as? String)
             let (c1, s1)     = zone(for: sessionRaw / 100)
             let (c2, s2)     = zone(for: weeklyRaw  / 100)
+            lastUsage = UsageSnapshot(
+                sessionPct: sessionPct, sessionReset: sessionReset,
+                weeklyPct: weeklyPct, weeklyReset: weeklyReset
+            )
             setDisplay(
                 "\(sessionPct)% \(sessionReset)",
                 "\(weeklyPct)% \(weeklyReset)",

@@ -23,7 +23,7 @@ Reads your token from the macOS Keychain (same place Claude Code stores it) and 
    ```
    Or: right-click → Open → Open anyway.
 
-Open **Settings** (click the menubar icon → Settings…, or ⌘,) to configure:
+Click the menubar icon to open **Settings** and configure:
 - Launch at Login
 - Warning/critical usage thresholds (%)
 - Colors for each zone (preset swatches or custom color picker)

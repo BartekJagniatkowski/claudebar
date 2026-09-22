@@ -6,8 +6,8 @@ macOS menubar app showing Claude Code token usage at a glance.
 
 - Menubar item: two lines — top: session `%` + time to session reset; bottom: weekly `%` + time to weekly reset
 - Color-coded zones: orange at ≥75% (warning), red + larger text at ≥90% (critical); rows styled independently
-- Settings window (⌘,): Launch at Login toggle, threshold sliders, color preset swatches, custom color picker
-- Custom color picker: spectrum gradient + hue slider + hex input, styled to match settings window
+- Settings popover (click menubar item): Launch at Login toggle, threshold sliders, color preset swatches per threshold, custom color picker, GitHub link, Quit
+- Custom color picker: spectrum gradient + hue slider + hex input, styled to match settings popover
 - Refreshes every 60s; debounced to never call API faster than 30s
 - Backs off 5 minutes on HTTP 429
 - Error states: `C?` = no token, `C401` = expired token, `C429` = rate limited
@@ -26,8 +26,8 @@ Response fields used: `five_hour.utilization`, `five_hour.resets_at`, `seven_day
 
 | File | Purpose |
 |------|---------|
-| `Sources/main.swift` | NSStatusItem, API polling, zone coloring, NSColor hex extension |
-| `Sources/SettingsWindowController.swift` | Settings window — all rows, ToggleButton, login item logic |
+| `Sources/main.swift` | NSStatusItem, popover show/hide, API polling, zone coloring, NSColor hex extension |
+| `Sources/SettingsViewController.swift` | Settings popover content — all rows, ToggleButton, login item logic |
 | `Sources/ColorPickerWindowController.swift` | Color picker panel — SpectrumView, HueSliderView, hex input |
 | `build.sh` | Compile `Sources/*.swift` + bundle + sign → `ClaudeBar.app` |
 | `make_icon.swift` | Generate `AppIcon.icns` from `AppNameIcon.webp` (run once when icon changes) |
@@ -69,9 +69,9 @@ Repo: https://github.com/BartekJagniatkowski/claudebar
 
 - `NSApp.setActivationPolicy(.accessory)` — no Dock icon
 - `LSUIElement = true` in Info.plist — menubar-only
-- Login item: managed in Settings window — tries `SMAppService.mainApp` (macOS 13 native), falls back to `~/Library/LaunchAgents/net.claudebar.plist`
-- Settings window: Shadcn/ui dark style (`#09090b` bg, `#27272a` borders), 280pt wide, `NSWindow` with `.darkAqua` appearance; `isReleasedWhenClosed = false` on both settings window and color picker panel
-- Threshold rows use `NSSlider` (1–100) + read-only value label (tagged 101/102 for lookup in `sliderChanged`); custom "+" swatch is 24×24 matching preset size, fills with picked color + 2px white outline when active
+- Login item: managed in Settings popover — tries `SMAppService.mainApp` (macOS 13 native), falls back to `~/Library/LaunchAgents/net.claudebar.plist`
+- Settings popover: `NSPopover` (`.semitransient`, `.darkAqua` appearance) anchored to the status item button, rebuilt fresh on each click so it always reflects current `UserDefaults`; native vibrant/blurred chrome, no opaque background fill — 300pt wide, height fit to content via `preferredContentSize`. Behavior flips to `.applicationDefined` while the color picker is open (NSPopover watches Escape globally and would otherwise close itself instead of the picker), restored to `.semitransient` when it closes; `isReleasedWhenClosed = false` on the color picker panel
+- Threshold rows use a custom `PillSlider` (`NSControl`, no cell) instead of `NSSlider`, drawn as a colored fill + white thumb; value shown in a fixed-width pill beside it (width must stay fixed — deriving it from the label's text re-triggers layout on every drag tick). Preset swatches are 16×16 circles; the custom swatch shows a system/hand-drawn rainbow color-wheel icon when unset, or the picked color + 2px white outline when active
 - Color picker: `SpectrumView` uses two stacked `CAGradientLayer`s (horizontal: white→hue, vertical: clear→black); `HueSliderView` uses gradient with 30° stops; `hexString`/`init?(hex:)` both use `deviceRGB` to prevent color space drift
 - Two-line menubar title via `NSAttributedString` with `\n`, Menlo 9pt, `baselineOffset: -4`
 - `NSColor.labelColor` for text — auto-adapts dark/light mode

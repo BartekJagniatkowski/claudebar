@@ -69,6 +69,7 @@ class SpectrumView: NSView {
     override func mouseDragged(with event: NSEvent) { handleDrag(event) }
 
     private func handleDrag(_ event: NSEvent) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
         let p = convert(event.locationInWindow, from: nil)
         sat = max(0, min(1, p.x / bounds.width))
         bri = max(0, min(1, p.y / bounds.height))
@@ -106,7 +107,7 @@ class HueSliderView: NSView {
         thumb.cornerRadius    = ts / 2
         thumb.backgroundColor = NSColor.white.cgColor
         thumb.borderWidth     = 1.5
-        thumb.borderColor     = NSColor(hex: "#27272a")!.cgColor
+        thumb.borderColor     = border.cgColor
         thumb.shadowColor     = NSColor.black.cgColor
         thumb.shadowOpacity   = 0.4
         thumb.shadowRadius    = 2
@@ -131,6 +132,7 @@ class HueSliderView: NSView {
     override func mouseDragged(with event: NSEvent) { handleDrag(event) }
 
     private func handleDrag(_ event: NSEvent) {
+        guard bounds.width > 0 else { return }
         let p = convert(event.locationInWindow, from: nil)
         hue = max(0, min(0.9999, p.x / bounds.width))
         CATransaction.begin()
@@ -155,6 +157,7 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
     private var hueSlider:     HueSliderView!
     private var previewSwatch: NSView!
     private var hexField:      NSTextField!
+    private var hexFieldBg:    NSView!
 
     private var currentHue: CGFloat = 0
     private var currentSat: CGFloat = 1
@@ -166,14 +169,17 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 240, height: 220),
-            styleMask:   [.titled, .closable],
+            styleMask:   [.borderless, .fullSizeContentView],
             backing:     .buffered,
             defer:       false
         )
-        panel.title           = "Pick Color"
-        panel.appearance      = NSAppearance(named: .darkAqua)
-        panel.backgroundColor = NSColor(hex: "#09090b")!
-        panel.isFloatingPanel = true
+        panel.appearance          = NSAppearance(named: .darkAqua)
+        panel.isOpaque            = false
+        panel.backgroundColor     = .clear
+        panel.hasShadow           = true
+        panel.isMovableByWindowBackground = true
+        panel.isFloatingPanel     = true
+        panel.level               = .popUpMenu // above the settings popover's own window
         panel.isReleasedWhenClosed = false
         super.init(window: panel)
         panel.delegate = self
@@ -185,7 +191,36 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
     // MARK: - UI
 
     private func buildUI() {
-        let content = window!.contentView!
+        // Frosted glass chrome matching the settings popover, since this is a
+        // borderless panel — no titled-window vibrancy to inherit for free.
+        let effect = NSVisualEffectView()
+        effect.material = .hudWindow
+        effect.state = .active
+        effect.blendingMode = .behindWindow
+        effect.wantsLayer = true
+        effect.layer!.cornerRadius = 20
+        effect.layer!.masksToBounds = true
+        effect.layer!.borderWidth = 1
+        effect.layer!.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        window!.contentView = effect
+
+        let closeBtn = NSButton(
+            image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil) ?? NSImage(),
+            target: self, action: #selector(closeTapped)
+        )
+        closeBtn.isBordered = false
+        closeBtn.focusRingType = .none
+        closeBtn.contentTintColor = textMuted
+        closeBtn.translatesAutoresizingMaskIntoConstraints = false
+        effect.addSubview(closeBtn)
+        NSLayoutConstraint.activate([
+            closeBtn.topAnchor.constraint(equalTo: effect.topAnchor, constant: 10),
+            closeBtn.trailingAnchor.constraint(equalTo: effect.trailingAnchor, constant: -10),
+            closeBtn.widthAnchor.constraint(equalToConstant: 16),
+            closeBtn.heightAnchor.constraint(equalToConstant: 16),
+        ])
+
+        let content = effect
         let pad: CGFloat = 14
 
         spectrumView = SpectrumView(frame: .zero)
@@ -196,32 +231,44 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
 
         previewSwatch = NSView()
         previewSwatch.wantsLayer = true
-        previewSwatch.layer!.cornerRadius = 5
+        previewSwatch.layer!.cornerRadius = 8
         previewSwatch.layer!.borderWidth  = 1
-        previewSwatch.layer!.borderColor  = NSColor(hex: "#27272a")!.cgColor
+        previewSwatch.layer!.borderColor  = cardEdge.cgColor
         previewSwatch.translatesAutoresizingMaskIntoConstraints = false
+
+        hexFieldBg = NSView()
+        hexFieldBg.wantsLayer = true
+        hexFieldBg.layer!.cornerRadius = 9
+        hexFieldBg.layer!.masksToBounds = true
+        hexFieldBg.layer!.backgroundColor = trackFill.cgColor
+        hexFieldBg.layer!.borderWidth = 1
+        hexFieldBg.layer!.borderColor = cardEdge.cgColor
+        hexFieldBg.translatesAutoresizingMaskIntoConstraints = false
 
         hexField = NSTextField()
         hexField.isBezeled       = false
-        hexField.drawsBackground = true
-        hexField.backgroundColor = NSColor(hex: "#09090b")!
-        hexField.textColor       = NSColor(hex: "#fafafa")!
+        hexField.drawsBackground = false
+        hexField.textColor       = textPri
         hexField.font            = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        hexField.wantsLayer      = true
-        hexField.layer!.cornerRadius = 6
-        hexField.layer!.masksToBounds = true
-        hexField.layer!.borderWidth  = 1
-        hexField.layer!.borderColor  = NSColor(hex: "#27272a")!.cgColor
         hexField.delegate            = self
         hexField.translatesAutoresizingMaskIntoConstraints = false
+        // Centered via its own intrinsic height inside a taller background pill,
+        // rather than stretched to the pill's height — NSTextField doesn't reliably
+        // vertically center its text when its frame is taller than the text itself.
+        hexFieldBg.addSubview(hexField)
+        NSLayoutConstraint.activate([
+            hexField.leadingAnchor.constraint(equalTo: hexFieldBg.leadingAnchor, constant: 10),
+            hexField.trailingAnchor.constraint(equalTo: hexFieldBg.trailingAnchor, constant: -10),
+            hexField.centerYAnchor.constraint(equalTo: hexFieldBg.centerYAnchor),
+        ])
 
         content.addSubview(spectrumView)
         content.addSubview(hueSlider)
         content.addSubview(previewSwatch)
-        content.addSubview(hexField)
+        content.addSubview(hexFieldBg)
 
         NSLayoutConstraint.activate([
-            spectrumView.topAnchor.constraint(equalTo: content.topAnchor, constant: pad),
+            spectrumView.topAnchor.constraint(equalTo: content.topAnchor, constant: 30),
             spectrumView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: pad),
             spectrumView.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -pad),
             spectrumView.heightAnchor.constraint(equalToConstant: 120),
@@ -237,10 +284,10 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
             previewSwatch.heightAnchor.constraint(equalToConstant: 28),
             previewSwatch.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -pad),
 
-            hexField.centerYAnchor.constraint(equalTo: previewSwatch.centerYAnchor),
-            hexField.leadingAnchor.constraint(equalTo: previewSwatch.trailingAnchor, constant: 8),
-            hexField.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -pad),
-            hexField.heightAnchor.constraint(equalToConstant: 28),
+            hexFieldBg.centerYAnchor.constraint(equalTo: previewSwatch.centerYAnchor),
+            hexFieldBg.leadingAnchor.constraint(equalTo: previewSwatch.trailingAnchor, constant: 8),
+            hexFieldBg.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -pad),
+            hexFieldBg.heightAnchor.constraint(equalToConstant: 28),
         ])
 
         spectrumView.onColorChanged = { [weak self] sat, bri in
@@ -291,15 +338,19 @@ class ColorPickerWindowController: NSWindowController, NSWindowDelegate, NSTextF
     func controlTextDidEndEditing(_ obj: Notification) {
         let raw = hexField.stringValue.trimmingCharacters(in: .whitespaces)
         if let color = NSColor(hex: raw) {
-            hexField.layer!.borderColor = NSColor(hex: "#27272a")!.cgColor
+            hexFieldBg.layer!.borderColor = cardEdge.cgColor
             currentColor = color
             applyColor(color)
         } else {
-            hexField.layer!.borderColor = NSColor.systemRed.cgColor
+            hexFieldBg.layer!.borderColor = NSColor.systemRed.cgColor
         }
     }
 
     // MARK: - Window lifecycle
+
+    @objc private func closeTapped() {
+        window?.close()
+    }
 
     // Escape: revert to previous color
     override func cancelOperation(_ sender: Any?) {
